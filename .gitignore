@@ -1,0 +1,43 @@
+# Environment variables — never commit
+.env
+.env.local
+.env.*
+!.env.example
+
+# Planning & internal docs — confidential, local only
+CLAUDE.md
+plan/
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.next/
+out/
+artifacts/
+cache/
+typechain-types/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Hardhat
+deployments/localhost/
+
+# Logs
+*.log
+npm-debug.log*
