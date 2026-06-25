@@ -16,10 +16,10 @@ function tx() {
 }
 
 export const INITIAL_AGENTS: AgentState[] = [
-  { id: 'orchestrator', codename: 'NEXUS-0', role: 'Orchestrator', status: 'idle', latencyMs: null, stakeUsdc: 5 },
-  { id: 'verifier', codename: 'VERIDIAN', role: 'On-Chain Verifier', status: 'idle', latencyMs: null, stakeUsdc: 1 },
-  { id: 'history', codename: 'ARCHIVE', role: 'History & Signals', status: 'idle', latencyMs: null, stakeUsdc: 1 },
-  { id: 'synthesizer', codename: 'ORACLE', role: 'Verdict Synthesizer', status: 'idle', latencyMs: null, stakeUsdc: 1 },
+  { id: 'orchestrator', codename: 'NEXUS-0', role: 'Orchestrator', status: 'idle', latencyMs: null, stakeUsdc: 5, reputation: 99, completedJobs: 318, contribution: null },
+  { id: 'verifier', codename: 'VERIDIAN', role: 'On-Chain Verifier', status: 'idle', latencyMs: null, stakeUsdc: 1, reputation: 98, completedJobs: 142, contribution: null },
+  { id: 'history', codename: 'ARCHIVE', role: 'History & Signals', status: 'idle', latencyMs: null, stakeUsdc: 1, reputation: 95, completedJobs: 96, contribution: null },
+  { id: 'synthesizer', codename: 'ORACLE', role: 'Verdict Synthesizer', status: 'idle', latencyMs: null, stakeUsdc: 1, reputation: 97, completedJobs: 121, contribution: null },
 ]
 
 export const INITIAL_METRICS: Metrics = {
@@ -53,6 +53,8 @@ export const MOCK_VERDICTS: Record<Verdict, VerdictOutput> = {
     },
     rationale:
       '[AI-GENERATED] Source verified, non-upgradeable, liquidity locked, zero exploit history. Audited by OpenZeppelin with no critical findings. Cleared for interaction.',
+    summary:
+      'All four agents agree — verified, locked, audited, clean. NEXUS-0 settled $0.80 across the network and returned SAFE.',
     payments: {
       orchestratorToVerifier: tx(),
       orchestratorToHistory: tx(),
@@ -81,6 +83,8 @@ export const MOCK_VERDICTS: Record<Verdict, VerdictOutput> = {
     },
     rationale:
       '[AI-GENERATED] Audited and verified, but an upgradeable proxy whose admin retains pause + fee control, with unlocked LP and an anonymous team. Elevated risk — proceed only with caution.',
+    summary:
+      'VERIDIAN flagged owner pause/fee powers and an unlocked LP; ARCHIVE found no exploits but an anonymous team. ORACLE weighed both and returned CAUTION.',
     payments: {
       orchestratorToVerifier: tx(),
       orchestratorToHistory: tx(),
@@ -111,11 +115,36 @@ export const MOCK_VERDICTS: Record<Verdict, VerdictOutput> = {
     },
     rationale:
       '[AI-GENERATED] Unverified source, failed honeypot simulation, $1.2M reentrancy exploit on record. No audit, abandoned repo, deleted socials. Critical threat — do not interact.',
+    summary:
+      'VERIDIAN’s honeypot sim failed and ARCHIVE surfaced a $1.2M exploit. ORACLE returned AVOID with high confidence — do not interact.',
     payments: {
       orchestratorToVerifier: tx(),
       orchestratorToHistory: tx(),
       orchestratorToSynthesizer: tx(),
     },
+  },
+}
+
+const CONTRIB: Record<AgentId, Record<Verdict, string>> = {
+  orchestrator: {
+    SAFE: '3 agents hired · $0.80 settled',
+    CAUTION: '3 agents hired · $0.80 settled',
+    AVOID: '3 agents hired · $0.80 settled',
+  },
+  verifier: {
+    SAFE: 'source ✓ · non-proxy · sim PASS',
+    CAUTION: 'source ✓ · proxy ⚠ · LP open',
+    AVOID: 'source ✗ · honeypot FAIL',
+  },
+  history: {
+    SAFE: 'audit: OpenZeppelin · 0 exploits',
+    CAUTION: 'audit: Sherlock · anon team',
+    AVOID: '$1.2M exploit · repo abandoned',
+  },
+  synthesizer: {
+    SAFE: 'verdict SAFE · conf high',
+    CAUTION: 'verdict CAUTION · conf high',
+    AVOID: 'verdict AVOID · conf high',
   },
 }
 
@@ -184,8 +213,8 @@ export function runMission(target: Verdict, h: MissionHandlers): () => void {
     {
       at: 3100,
       run: (h) => {
-        h.onAgent('verifier', { status: 'delivered', latencyMs: 1840 })
-        h.onHandoff({ from: 'orchestrator', to: 'verifier', label: 'DELIVERED', state: isAvoid ? 'slashed' : 'done' })
+        h.onAgent('verifier', { status: 'delivered', latencyMs: 1840, contribution: CONTRIB.verifier[target] })
+        h.onHandoff({ from: 'orchestrator', to: 'verifier', label: 'DELIVERED', state: 'done' })
         if (isAvoid) {
           h.onStream({ kind: 'alert', from: 'verifier', to: 'orchestrator', text: '⚠ ANOMALY · source unverified + honeypot sell reverts' })
           h.onMetrics({ progress: 60, riskScore: Math.round(risk * 0.7) })
@@ -198,7 +227,7 @@ export function runMission(target: Verdict, h: MissionHandlers): () => void {
     {
       at: 3700,
       run: (h) => {
-        h.onAgent('history', { status: 'delivered', latencyMs: 2210 })
+        h.onAgent('history', { status: 'delivered', latencyMs: 2210, contribution: CONTRIB.history[target] })
         h.onHandoff({ from: 'orchestrator', to: 'history', label: 'DELIVERED', state: 'done' })
         h.onStream({
           kind: isAvoid ? 'alert' : 'comms',
@@ -229,8 +258,8 @@ export function runMission(target: Verdict, h: MissionHandlers): () => void {
     {
       at: 6000,
       run: (h) => {
-        h.onAgent('synthesizer', { status: 'delivered', latencyMs: 1390 })
-        h.onAgent('orchestrator', { status: 'delivered' })
+        h.onAgent('synthesizer', { status: 'delivered', latencyMs: 1390, contribution: CONTRIB.synthesizer[target] })
+        h.onAgent('orchestrator', { status: 'delivered', contribution: CONTRIB.orchestrator[target] })
         h.onHandoff({ from: 'synthesizer', to: 'caller', label: `VERDICT · ${target}`, state: 'done' })
         h.onStream({ kind: 'verdict', from: 'orchestrator', to: 'caller', text: `VERDICT RETURNED · ${target} · settlement complete` })
         h.onMetrics({ progress: 100, latencyMs: 0 })

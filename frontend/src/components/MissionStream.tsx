@@ -79,22 +79,31 @@ export function MissionStream({
           <span className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-text-dim">
             Command Channel
           </span>
-          <div className="flex items-center gap-1 rounded border border-edge bg-surface-2 p-0.5">
-            {(['SAFE', 'CAUTION', 'AVOID'] as const).map((v) => (
-              <button
-                key={v}
-                onClick={() => onPreview(v)}
-                className={`rounded px-2 py-0.5 font-mono text-[10px] tracking-wider transition-colors ${
-                  preview === v ? 'bg-purple/20 text-purple-bright' : 'text-text-faint hover:text-text-dim'
-                }`}
-              >
-                {v}
-              </button>
-            ))}
+          {/* Demo-only outcome selector — removed once the live orchestrator is wired */}
+          <div
+            title="Demo control: picks which simulated outcome the mock pipeline returns. Not a live result."
+            className="flex items-center gap-2 rounded border border-dashed border-edge-glow/70 bg-surface-2/50 px-2 py-1"
+          >
+            <span className="font-mono text-[8px] uppercase tracking-[0.2em] text-text-faint">
+              ⚙ Demo · sim outcome
+            </span>
+            <div className="flex items-center gap-0.5">
+              {(['SAFE', 'CAUTION', 'AVOID'] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => onPreview(v)}
+                  className={`rounded px-1.5 py-0.5 font-mono text-[9px] tracking-wider transition-colors ${
+                    preview === v ? 'bg-text-dim/15 text-text-primary' : 'text-text-faint hover:text-text-dim'
+                  }`}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
         <div className="flex gap-2">
-          <div className="flex flex-1 items-center gap-2 rounded border border-edge bg-bg-deep px-3">
+          <div className="flex flex-1 items-center gap-2 rounded border border-edge bg-bg-deep px-3 focus-within:border-purple/60">
             <span className="font-mono text-acid">▸</span>
             <input
               value={value}
@@ -108,7 +117,7 @@ export function MissionStream({
           <button
             onClick={() => onLaunch(value)}
             disabled={running}
-            className="rounded border border-purple/60 bg-purple/15 px-5 font-display text-xs font-semibold uppercase tracking-[0.15em] text-purple-bright transition-all hover:bg-purple/30 hover:shadow-glow-purple disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded border border-purple/60 bg-purple/15 px-6 font-display text-xs font-semibold uppercase tracking-[0.15em] text-purple-bright transition-all hover:bg-purple/30 hover:shadow-glow-purple disabled:cursor-not-allowed disabled:opacity-40"
           >
             {running ? 'Running' : 'Execute'}
           </button>

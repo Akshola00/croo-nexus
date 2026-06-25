@@ -33,7 +33,7 @@ const config: Config = {
       },
       fontFamily: {
         display: ['"Chakra Petch"', 'system-ui', 'sans-serif'],
-        sans: ['"Chakra Petch"', 'system-ui', 'sans-serif'],
+        sans: ['"Inter"', 'system-ui', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
       boxShadow: {

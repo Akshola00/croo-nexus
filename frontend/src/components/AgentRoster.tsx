@@ -10,23 +10,21 @@ const STATUS_META: Record<AgentStatus, { label: string; dot: string; ring: strin
   slashed: { label: 'SLASHED', dot: 'bg-risk-avoid shadow-glow-avoid', ring: 'border-risk-avoid/60 shadow-glow-avoid', text: 'text-risk-avoid' },
 }
 
-function Waveform({ active }: { active: boolean }) {
-  return (
-    <div className="flex h-4 items-end gap-[2px]">
-      {[0, 1, 2, 3, 4].map((i) => (
-        <span
-          key={i}
-          className={`w-[2px] rounded-sm ${active ? 'bg-acid animate-pulse-node' : 'bg-edge'}`}
-          style={{ height: active ? `${30 + ((i * 37) % 70)}%` : '20%', animationDelay: `${i * 90}ms` }}
-        />
-      ))}
-    </div>
-  )
+function Contribution({ agent }: { agent: AgentState }) {
+  if (agent.status === 'slashed') {
+    return <span className="text-risk-avoid">✕ false report · stake slashed</span>
+  }
+  if (agent.contribution) {
+    return <span className="font-mono text-acid">{agent.contribution}</span>
+  }
+  if (agent.status === 'active' || agent.status === 'transmitting') {
+    return <span className="text-purple-bright">● processing…</span>
+  }
+  return <span className="text-text-faint">— awaiting dispatch —</span>
 }
 
 function AgentNode({ agent }: { agent: AgentState }) {
   const m = STATUS_META[agent.status]
-  const transmitting = agent.status === 'transmitting' || agent.status === 'active'
 
   return (
     <div className={`corner-bracket relative rounded-md border bg-surface-2/70 p-3 transition-all duration-300 ${m.ring}`}>
@@ -35,7 +33,7 @@ function AgentNode({ agent }: { agent: AgentState }) {
           <div className="font-display text-sm font-semibold tracking-wider text-text-primary">
             {agent.codename}
           </div>
-          <div className="font-mono text-[10px] uppercase tracking-wider text-text-faint">{agent.role}</div>
+          <div className="text-[10px] uppercase tracking-wider text-text-faint">{agent.role}</div>
         </div>
         <div className="flex items-center gap-1.5">
           <span className={`h-1.5 w-1.5 rounded-full ${m.dot}`} />
@@ -43,16 +41,21 @@ function AgentNode({ agent }: { agent: AgentState }) {
         </div>
       </div>
 
-      <div className="mt-3 flex items-center justify-between">
-        <Waveform active={transmitting} />
-        <div className="text-right font-mono text-[10px] text-text-faint">
-          <div>
-            stake <span className="text-purple-bright">{agent.stakeUsdc.toFixed(2)}</span>
-          </div>
-          <div>
-            lat <span className={agent.latencyMs ? 'text-acid' : 'text-text-faint'}>{agent.latencyMs ? `${agent.latencyMs}ms` : '—'}</span>
-          </div>
+      {/* reputation + completed jobs — sourced from AgentRegistry on Base */}
+      <div className="mt-3 flex items-center gap-2">
+        <div className="h-1 flex-1 overflow-hidden rounded-full bg-surface-3">
+          <div className="h-full rounded-full bg-acid/80" style={{ width: `${agent.reputation}%` }} />
         </div>
+        <span className="font-mono text-[10px] text-acid">{agent.reputation}</span>
+        <span className="font-mono text-[10px] text-text-faint">· {agent.completedJobs} jobs</span>
+      </div>
+
+      {/* this-job contribution */}
+      <div className="mt-2 flex items-center justify-between border-t border-edge/40 pt-2 text-[11px]">
+        <Contribution agent={agent} />
+        <span className="font-mono text-[10px] text-text-faint">
+          {agent.latencyMs ? `${agent.latencyMs}ms` : ''}
+        </span>
       </div>
     </div>
   )

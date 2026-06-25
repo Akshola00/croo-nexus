@@ -61,17 +61,40 @@ export default function Home() {
         <main className="mx-auto grid w-full max-w-[1500px] flex-1 grid-cols-1 gap-4 p-4 lg:grid-cols-[260px_1fr_300px]">
           <AgentRoster agents={agents} />
 
-          <div className="flex min-h-[560px] flex-col">
-            <MissionStream
-              messages={messages}
-              running={running}
-              onLaunch={launch}
-              preview={preview}
-              onPreview={(v) => {
-                setPreview(v)
-                setVerdict((cur) => (cur ? null : cur))
-              }}
-            />
+          <div className="flex min-h-[560px] flex-col gap-3">
+            <div className="flex-1">
+              <MissionStream
+                messages={messages}
+                running={running}
+                onLaunch={launch}
+                preview={preview}
+                onPreview={(v) => {
+                  setPreview(v)
+                  setVerdict((cur) => (cur ? null : cur))
+                }}
+              />
+            </div>
+
+            {verdict && (
+              <div
+                className={`corner-bracket relative animate-stream-in rounded-lg border bg-surface/50 p-4 ${
+                  verdict.verdict === 'SAFE'
+                    ? 'border-risk-safe/40'
+                    : verdict.verdict === 'CAUTION'
+                      ? 'border-risk-caution/40'
+                      : 'border-risk-avoid/40'
+                }`}
+              >
+                <div className="mb-1.5 flex items-center gap-2">
+                  <span className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-text-dim">
+                    Mission Summary
+                  </span>
+                  <span className="h-px flex-1 bg-edge" />
+                  <span className="font-mono text-[10px] text-acid">$0.80 settled · {metrics.toolCalls} tool calls</span>
+                </div>
+                <p className="font-sans text-[13.5px] leading-relaxed text-text-primary">{verdict.summary}</p>
+              </div>
+            )}
           </div>
 
           <ThreatPanel verdict={verdict} riskScore={metrics.riskScore} />

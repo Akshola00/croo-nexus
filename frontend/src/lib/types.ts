@@ -14,6 +14,9 @@ export interface AgentState {
   status: AgentStatus
   latencyMs: number | null
   stakeUsdc: number
+  reputation: number
+  completedJobs: number
+  contribution: string | null
 }
 
 export type StreamKind = 'system' | 'comms' | 'payment' | 'alert' | 'verdict'
@@ -65,6 +68,7 @@ export interface VerdictOutput {
     socialFlags: string[]
   }
   rationale: string
+  summary: string
   payments: {
     orchestratorToVerifier: string
     orchestratorToHistory: string

@@ -90,9 +90,16 @@ export function ThreatPanel({
             <Check label="Social flags" ok={verdict.history.socialFlags.length === 0 ? true : String(verdict.history.socialFlags.length)} />
           </div>
 
-          <div className="rounded-lg border border-edge bg-surface/60 p-3">
-            <div className="mb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-text-faint">Rationale</div>
-            <p className="text-[11px] leading-relaxed text-text-primary/75">{verdict.rationale}</p>
+          <div className="rounded-lg border border-purple/30 bg-purple/5 p-3">
+            <div className="mb-1 flex items-center gap-1.5">
+              <span className="h-1 w-1 rounded-full bg-purple-bright" />
+              <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-purple-bright">
+                ORACLE · AI Rationale
+              </span>
+            </div>
+            <p className="font-sans text-[12.5px] leading-relaxed text-text-primary/90">
+              {verdict.rationale.replace('[AI-GENERATED] ', '')}
+            </p>
           </div>
         </>
       )}
