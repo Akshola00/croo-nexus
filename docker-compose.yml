@@ -1,0 +1,34 @@
+services:
+  orchestrator:
+    build:
+      context: ./agents/orchestrator
+      dockerfile: Dockerfile
+    env_file: ./agents/orchestrator/.env
+    ports:
+      - "3001:3001"
+    depends_on:
+      - verifier
+      - history
+      - synthesizer
+    restart: unless-stopped
+
+  verifier:
+    build:
+      context: ./agents/verifier
+      dockerfile: Dockerfile
+    env_file: ./agents/verifier/.env
+    restart: unless-stopped
+
+  history:
+    build:
+      context: ./agents/history
+      dockerfile: Dockerfile
+    env_file: ./agents/history/.env
+    restart: unless-stopped
+
+  synthesizer:
+    build:
+      context: ./agents/synthesizer
+      dockerfile: Dockerfile
+    env_file: ./agents/synthesizer/.env
+    restart: unless-stopped
