@@ -1,92 +1,86 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { Logo } from '@/components/Logo'
-import { ContractInput } from '@/components/ContractInput'
-import { LogPanel } from '@/components/LogPanel'
-import { VerdictCard } from '@/components/VerdictCard'
-import { MOCK_VERDICTS, runMockPipeline } from '@/lib/mock'
-import type { LogEvent, Verdict, VerdictOutput } from '@/lib/types'
+import { HudBar } from '@/components/HudBar'
+import { AgentRoster } from '@/components/AgentRoster'
+import { MissionStream } from '@/components/MissionStream'
+import { ThreatPanel } from '@/components/ThreatPanel'
+import { EventChain } from '@/components/EventChain'
+import { INITIAL_AGENTS, INITIAL_METRICS, runMission } from '@/lib/mock'
+import type { AgentId, AgentState, Handoff, Metrics, StreamMessage, Verdict, VerdictOutput } from '@/lib/types'
 
 export default function Home() {
-  const [events, setEvents] = useState<LogEvent[]>([])
-  const [running, setRunning] = useState(false)
+  const [agents, setAgents] = useState<AgentState[]>(INITIAL_AGENTS)
+  const [messages, setMessages] = useState<StreamMessage[]>([])
+  const [handoffs, setHandoffs] = useState<Handoff[]>([])
+  const [metrics, setMetrics] = useState<Metrics>(INITIAL_METRICS)
   const [verdict, setVerdict] = useState<VerdictOutput | null>(null)
+  const [running, setRunning] = useState(false)
   const [preview, setPreview] = useState<Verdict>('CAUTION')
+
+  const idRef = useRef(0)
   const cancelRef = useRef<(() => void) | null>(null)
 
-  function handleSubmit() {
+  function launch() {
     cancelRef.current?.()
-    setEvents([])
+    idRef.current = 0
+    setAgents(INITIAL_AGENTS.map((a) => ({ ...a })))
+    setMessages([])
+    setHandoffs([])
+    setMetrics(INITIAL_METRICS)
     setVerdict(null)
     setRunning(true)
 
-    cancelRef.current = runMockPipeline(
-      (e) => setEvents((prev) => [...prev, e]),
-      () => {
+    cancelRef.current = runMission(preview, {
+      onStream: (m) =>
+        setMessages((prev) => [
+          ...prev,
+          { ...m, id: idRef.current++, timestamp: new Date().toLocaleTimeString('en-GB') },
+        ]),
+      onAgent: (id: AgentId, patch) =>
+        setAgents((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a))),
+      onHandoff: (hh) => setHandoffs((prev) => [...prev, { ...hh, id: idRef.current++ }]),
+      onMetrics: (patch) => setMetrics((prev) => ({ ...prev, ...patch })),
+      onDone: (v) => {
+        setVerdict(v)
         setRunning(false)
-        setVerdict(MOCK_VERDICTS[preview])
-      }
-    )
+      },
+    })
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-6xl px-6 py-10">
-      <header className="mb-10 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Logo size={36} />
-          <div>
-            <div className="text-lg font-light tracking-[0.15em]">
-              CROO <span className="font-semibold text-indigo">NEXUS</span>
-            </div>
-            <div className="text-xs text-text-muted">Pre-signature contract risk verdicts</div>
-          </div>
-        </div>
+    <>
+      <div className="env-gradient" />
+      <div className="env-grain" />
+      <div className="env-scanlines" />
+      <div className="env-vignette" />
 
-        {/* Dev-only verdict preview switch — remove when SSE is wired */}
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1">
-          {(['SAFE', 'CAUTION', 'AVOID'] as Verdict[]).map((v) => (
-            <button
-              key={v}
-              onClick={() => {
+      <div className="flex min-h-screen flex-col">
+        <HudBar online metrics={metrics} />
+
+        <main className="mx-auto grid w-full max-w-[1500px] flex-1 grid-cols-1 gap-4 p-4 lg:grid-cols-[260px_1fr_300px]">
+          <AgentRoster agents={agents} />
+
+          <div className="flex min-h-[560px] flex-col">
+            <MissionStream
+              messages={messages}
+              running={running}
+              onLaunch={launch}
+              preview={preview}
+              onPreview={(v) => {
                 setPreview(v)
-                setVerdict((cur) => (cur ? MOCK_VERDICTS[v] : cur))
+                setVerdict((cur) => (cur ? null : cur))
               }}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-                preview === v
-                  ? 'bg-surface-raised text-text-primary'
-                  : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              {v}
-            </button>
-          ))}
+            />
+          </div>
+
+          <ThreatPanel verdict={verdict} riskScore={metrics.riskScore} />
+        </main>
+
+        <div className="mx-auto w-full max-w-[1500px] px-4 pb-4">
+          <EventChain handoffs={handoffs} />
         </div>
-      </header>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_3fr]">
-        <section className="space-y-6">
-          <div className="rounded-xl border border-border bg-surface p-5">
-            <ContractInput onSubmit={handleSubmit} running={running} />
-          </div>
-
-          <div className="rounded-xl border border-border bg-surface p-5 text-sm text-text-muted">
-            <div className="mb-3 text-xs font-medium uppercase tracking-wider text-text-primary">
-              How it works
-            </div>
-            <ul className="space-y-2 leading-relaxed">
-              <li>· The Orchestrator hires 3 independent agents on CROO.</li>
-              <li>· Each is paid in USDC, escrowed on Base.</li>
-              <li>· Provably-wrong output gets the agent's stake slashed.</li>
-            </ul>
-          </div>
-        </section>
-
-        <section className="space-y-6">
-          <LogPanel events={events} running={running} />
-          {verdict && <VerdictCard v={verdict} />}
-        </section>
       </div>
-    </main>
+    </>
   )
 }

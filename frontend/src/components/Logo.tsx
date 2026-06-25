@@ -1,63 +1,40 @@
-export function Logo({ size = 32 }: { size?: number }) {
+export function Logo({ size = 34 }: { size?: number }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 48 48"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <linearGradient id="nexusLine" x1="24" y1="24" x2="44" y2="44" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#6d5aff" />
-          <stop offset="1" stopColor="#9d7bff" />
+        <linearGradient id="nxLine" x1="24" y1="24" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#a855f7" />
+          <stop offset="1" stopColor="#b4ff2e" />
         </linearGradient>
-        <filter id="nexusGlow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="2.5" result="blur" />
+        <filter id="nxGlow" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="2" result="b" />
           <feMerge>
-            <feMergeNode in="blur" />
+            <feMergeNode in="b" />
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
       </defs>
 
-      {/* connection lines */}
-      <line x1="24" y1="24" x2="24" y2="6" stroke="url(#nexusLine)" strokeWidth="2" />
-      <line x1="24" y1="24" x2="40" y2="36" stroke="url(#nexusLine)" strokeWidth="2" />
-      <line x1="24" y1="24" x2="8" y2="36" stroke="url(#nexusLine)" strokeWidth="2" />
+      <line x1="24" y1="24" x2="24" y2="7" stroke="url(#nxLine)" strokeWidth="1.6" />
+      <line x1="24" y1="24" x2="40" y2="35" stroke="url(#nxLine)" strokeWidth="1.6" />
+      <line x1="24" y1="24" x2="8" y2="35" stroke="url(#nxLine)" strokeWidth="1.6" />
 
-      {/* outer nodes */}
-      <Hexagon cx={24} cy={6} r={4} fill="none" stroke="#9d7bff" strokeWidth={1.5} />
-      <Hexagon cx={40} cy={36} r={4} fill="none" stroke="#9d7bff" strokeWidth={1.5} />
-      <Hexagon cx={8} cy={36} r={4} fill="none" stroke="#9d7bff" strokeWidth={1.5} />
+      <Hex cx={24} cy={7} r={3.6} fill="#06030d" stroke="#b4ff2e" sw={1.4} />
+      <Hex cx={40} cy={35} r={3.6} fill="#06030d" stroke="#a855f7" sw={1.4} />
+      <Hex cx={8} cy={35} r={3.6} fill="#06030d" stroke="#a855f7" sw={1.4} />
 
-      {/* center node */}
-      <g filter="url(#nexusGlow)">
-        <Hexagon cx={24} cy={24} r={7} fill="#6d5aff" />
+      <g filter="url(#nxGlow)">
+        <Hex cx={24} cy={24} r={6.5} fill="#a855f7" />
+        <Hex cx={24} cy={24} r={3} fill="#c77dff" />
       </g>
     </svg>
   )
 }
 
-function Hexagon({
-  cx,
-  cy,
-  r,
-  fill,
-  stroke,
-  strokeWidth,
-}: {
-  cx: number
-  cy: number
-  r: number
-  fill: string
-  stroke?: string
-  strokeWidth?: number
-}) {
-  const points = Array.from({ length: 6 }, (_, i) => {
-    const angle = (Math.PI / 3) * i - Math.PI / 6
-    return `${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`
+function Hex({ cx, cy, r, fill, stroke, sw }: { cx: number; cy: number; r: number; fill: string; stroke?: string; sw?: number }) {
+  const pts = Array.from({ length: 6 }, (_, i) => {
+    const a = (Math.PI / 3) * i - Math.PI / 6
+    return `${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`
   }).join(' ')
-
-  return <polygon points={points} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />
+  return <polygon points={pts} fill={fill} stroke={stroke} strokeWidth={sw} />
 }

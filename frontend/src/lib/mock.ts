@@ -1,10 +1,33 @@
-import type { LogEvent, Verdict, VerdictOutput } from './types'
+import type {
+  AgentId,
+  AgentState,
+  Handoff,
+  Metrics,
+  StreamMessage,
+  Verdict,
+  VerdictOutput,
+} from './types'
 
 const DEMO_CONTRACT = '0x4200000000000000000000000000000000000006'
 
 function tx() {
   const hex = '0123456789abcdef'
   return '0x' + Array.from({ length: 64 }, () => hex[Math.floor(Math.random() * 16)]).join('')
+}
+
+export const INITIAL_AGENTS: AgentState[] = [
+  { id: 'orchestrator', codename: 'NEXUS-0', role: 'Orchestrator', status: 'idle', latencyMs: null, stakeUsdc: 5 },
+  { id: 'verifier', codename: 'VERIDIAN', role: 'On-Chain Verifier', status: 'idle', latencyMs: null, stakeUsdc: 1 },
+  { id: 'history', codename: 'ARCHIVE', role: 'History & Signals', status: 'idle', latencyMs: null, stakeUsdc: 1 },
+  { id: 'synthesizer', codename: 'ORACLE', role: 'Verdict Synthesizer', status: 'idle', latencyMs: null, stakeUsdc: 1 },
+]
+
+export const INITIAL_METRICS: Metrics = {
+  progress: 0,
+  confidence: 0,
+  riskScore: 0,
+  latencyMs: 0,
+  toolCalls: 0,
 }
 
 export const MOCK_VERDICTS: Record<Verdict, VerdictOutput> = {
@@ -29,7 +52,7 @@ export const MOCK_VERDICTS: Record<Verdict, VerdictOutput> = {
       socialFlags: [],
     },
     rationale:
-      '[AI-generated] Source code is verified, the contract is not upgradeable, liquidity is locked, and no historical exploits exist. Audited by OpenZeppelin with zero critical findings. Low risk.',
+      '[AI-GENERATED] Source verified, non-upgradeable, liquidity locked, zero exploit history. Audited by OpenZeppelin with no critical findings. Cleared for interaction.',
     payments: {
       orchestratorToVerifier: tx(),
       orchestratorToHistory: tx(),
@@ -57,7 +80,7 @@ export const MOCK_VERDICTS: Record<Verdict, VerdictOutput> = {
       socialFlags: ['anonymous team'],
     },
     rationale:
-      '[AI-generated] The contract is audited and source-verified, but it is an upgradeable proxy whose admin retains pause and fee-change privileges, and the LP is not locked. Combined with an anonymous team, this is elevated risk — not a clear avoid.',
+      '[AI-GENERATED] Audited and verified, but an upgradeable proxy whose admin retains pause + fee control, with unlocked LP and an anonymous team. Elevated risk — proceed only with caution.',
     payments: {
       orchestratorToVerifier: tx(),
       orchestratorToHistory: tx(),
@@ -80,19 +103,14 @@ export const MOCK_VERDICTS: Record<Verdict, VerdictOutput> = {
     },
     history: {
       exploits: [
-        {
-          date: '2026-02',
-          description: 'Reentrancy drain via unguarded withdraw',
-          amountLost: '$1.2M',
-          source: 'rekt.news',
-        },
+        { date: '2026-02', description: 'Reentrancy drain via unguarded withdraw', amountLost: '$1.2M', source: 'rekt.news' },
       ],
       audit: { auditor: null, date: null, criticalFindings: null },
       githubActivity: 'abandoned',
       socialFlags: ['anonymous team', 'deleted social accounts'],
     },
     rationale:
-      '[AI-generated] Source code is unverified, the honeypot simulation failed (sell reverts), and a $1.2M reentrancy exploit is on record. No audit, abandoned repo, deleted socials. Do not interact.',
+      '[AI-GENERATED] Unverified source, failed honeypot simulation, $1.2M reentrancy exploit on record. No audit, abandoned repo, deleted socials. Critical threat — do not interact.',
     payments: {
       orchestratorToVerifier: tx(),
       orchestratorToHistory: tx(),
@@ -101,54 +119,132 @@ export const MOCK_VERDICTS: Record<Verdict, VerdictOutput> = {
   },
 }
 
-interface Step {
-  delay: number
-  message: string
-  withTx?: boolean
-  tone?: LogEvent['tone']
+const RISK_TARGET: Record<Verdict, number> = { SAFE: 18, CAUTION: 58, AVOID: 92 }
+
+export interface MissionHandlers {
+  onStream: (m: Omit<StreamMessage, 'id' | 'timestamp'>) => void
+  onAgent: (id: AgentId, patch: Partial<AgentState>) => void
+  onHandoff: (h: Omit<Handoff, 'id'>) => void
+  onMetrics: (patch: Partial<Metrics>) => void
+  onDone: (v: VerdictOutput) => void
 }
 
-const PIPELINE_STEPS: Step[] = [
-  { delay: 300, message: 'Orchestrator received request' },
-  { delay: 500, message: 'Reading Agent Registry on Base...' },
-  { delay: 700, message: 'Hiring Verifier agent — escrow locked', withTx: true, tone: 'croo' },
-  { delay: 200, message: 'Hiring History agent — escrow locked', withTx: true, tone: 'croo' },
-  { delay: 1600, message: 'Verifier delivered — on-chain checks complete' },
-  { delay: 800, message: 'History delivered — signals gathered' },
-  { delay: 400, message: 'Hiring Synthesizer agent — escrow locked', withTx: true, tone: 'croo' },
-  { delay: 1400, message: 'Synthesizer delivered — verdict generated' },
-  { delay: 300, message: 'Pipeline complete · total cost $0.80 USDC', tone: 'croo' },
-]
+interface Frame {
+  at: number
+  run: (h: MissionHandlers) => void
+}
 
-export function runMockPipeline(
-  onEvent: (e: LogEvent) => void,
-  onDone: () => void
-): () => void {
+export function runMission(target: Verdict, h: MissionHandlers): () => void {
+  const isAvoid = target === 'AVOID'
+  const risk = RISK_TARGET[target]
+
+  const frames: Frame[] = [
+    {
+      at: 200,
+      run: (h) => {
+        h.onAgent('orchestrator', { status: 'active' })
+        h.onStream({ kind: 'system', from: 'caller', to: 'orchestrator', text: 'RISK CHECK REQUESTED · target acquired' })
+        h.onMetrics({ progress: 8 })
+      },
+    },
+    {
+      at: 700,
+      run: (h) => {
+        h.onStream({ kind: 'comms', from: 'orchestrator', to: 'system', text: 'Reading Agent Registry on Base · selecting staked specialists' })
+        h.onMetrics({ progress: 16, toolCalls: 1 })
+      },
+    },
+    {
+      at: 1250,
+      run: (h) => {
+        h.onAgent('orchestrator', { status: 'transmitting' })
+        h.onAgent('verifier', { status: 'active' })
+        h.onStream({ kind: 'payment', from: 'orchestrator', to: 'verifier', text: 'Escrow locked → VERIDIAN dispatched', txHash: tx() })
+        h.onHandoff({ from: 'orchestrator', to: 'verifier', label: 'ESCROW · 0.30', state: 'active' })
+        h.onMetrics({ progress: 28, toolCalls: 2 })
+      },
+    },
+    {
+      at: 1650,
+      run: (h) => {
+        h.onAgent('history', { status: 'active' })
+        h.onStream({ kind: 'payment', from: 'orchestrator', to: 'history', text: 'Escrow locked → ARCHIVE dispatched', txHash: tx() })
+        h.onHandoff({ from: 'orchestrator', to: 'history', label: 'ESCROW · 0.30', state: 'active' })
+        h.onMetrics({ progress: 38, latencyMs: 240 })
+      },
+    },
+    {
+      at: 2300,
+      run: (h) => {
+        h.onAgent('verifier', { status: 'transmitting' })
+        h.onStream({ kind: 'comms', from: 'verifier', to: 'orchestrator', text: 'On-chain sweep: source · proxy · owner powers · LP · honeypot sim' })
+        h.onMetrics({ progress: 50, toolCalls: 6 })
+      },
+    },
+    {
+      at: 3100,
+      run: (h) => {
+        h.onAgent('verifier', { status: 'delivered', latencyMs: 1840 })
+        h.onHandoff({ from: 'orchestrator', to: 'verifier', label: 'DELIVERED', state: isAvoid ? 'slashed' : 'done' })
+        if (isAvoid) {
+          h.onStream({ kind: 'alert', from: 'verifier', to: 'orchestrator', text: '⚠ ANOMALY · source unverified + honeypot sell reverts' })
+          h.onMetrics({ progress: 60, riskScore: Math.round(risk * 0.7) })
+        } else {
+          h.onStream({ kind: 'comms', from: 'verifier', to: 'orchestrator', text: 'Verifier payload delivered · proofs attached' })
+          h.onMetrics({ progress: 60, riskScore: Math.round(risk * 0.6) })
+        }
+      },
+    },
+    {
+      at: 3700,
+      run: (h) => {
+        h.onAgent('history', { status: 'delivered', latencyMs: 2210 })
+        h.onHandoff({ from: 'orchestrator', to: 'history', label: 'DELIVERED', state: 'done' })
+        h.onStream({
+          kind: isAvoid ? 'alert' : 'comms',
+          from: 'history',
+          to: 'orchestrator',
+          text: isAvoid ? '⚠ THREAT INTEL · $1.2M reentrancy exploit on record' : 'Signals gathered · audit + repo + social scan complete',
+        })
+        h.onMetrics({ progress: 72, latencyMs: 310 })
+      },
+    },
+    {
+      at: 4300,
+      run: (h) => {
+        h.onAgent('synthesizer', { status: 'active' })
+        h.onStream({ kind: 'payment', from: 'orchestrator', to: 'synthesizer', text: 'Escrow locked → ORACLE synthesizing verdict', txHash: tx() })
+        h.onHandoff({ from: 'orchestrator', to: 'synthesizer', label: 'ESCROW · 0.20', state: 'active' })
+        h.onMetrics({ progress: 84, toolCalls: 8 })
+      },
+    },
+    {
+      at: 5200,
+      run: (h) => {
+        h.onAgent('synthesizer', { status: 'transmitting' })
+        h.onStream({ kind: 'comms', from: 'synthesizer', to: 'orchestrator', text: 'Scoring evidence · assigning confidence · drafting rationale' })
+        h.onMetrics({ progress: 94, riskScore: risk, confidence: 88 })
+      },
+    },
+    {
+      at: 6000,
+      run: (h) => {
+        h.onAgent('synthesizer', { status: 'delivered', latencyMs: 1390 })
+        h.onAgent('orchestrator', { status: 'delivered' })
+        h.onHandoff({ from: 'synthesizer', to: 'caller', label: `VERDICT · ${target}`, state: 'done' })
+        h.onStream({ kind: 'verdict', from: 'orchestrator', to: 'caller', text: `VERDICT RETURNED · ${target} · settlement complete` })
+        h.onMetrics({ progress: 100, latencyMs: 0 })
+        h.onDone(MOCK_VERDICTS[target])
+      },
+    },
+  ]
+
   let cancelled = false
-  let id = 0
-  let acc = 0
-
-  const timers: ReturnType<typeof setTimeout>[] = []
-
-  PIPELINE_STEPS.forEach((step) => {
-    acc += step.delay
-    const t = setTimeout(() => {
-      if (cancelled) return
-      onEvent({
-        id: id++,
-        timestamp: new Date().toLocaleTimeString('en-GB'),
-        message: step.message,
-        txHash: step.withTx ? tx() : undefined,
-        tone: step.tone ?? 'default',
-      })
-    }, acc)
-    timers.push(t)
-  })
-
-  const doneTimer = setTimeout(() => {
-    if (!cancelled) onDone()
-  }, acc + 400)
-  timers.push(doneTimer)
+  const timers = frames.map((f) =>
+    setTimeout(() => {
+      if (!cancelled) f.run(h)
+    }, f.at)
+  )
 
   return () => {
     cancelled = true

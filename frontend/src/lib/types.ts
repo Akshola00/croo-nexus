@@ -1,8 +1,48 @@
-// Local mirror of @croo-nexus/shared types. Replaced by the real import
-// once the orchestrator SSE endpoint is wired (Phase 6/7 integration).
+// Local mirror of @croo-nexus/shared types + mission-control view state.
+// The mock engine drives these; replaced by the real SSE stream in integration.
 
 export type Verdict = 'SAFE' | 'CAUTION' | 'AVOID'
 export type Confidence = 'high' | 'medium' | 'low'
+
+export type AgentId = 'orchestrator' | 'verifier' | 'history' | 'synthesizer'
+export type AgentStatus = 'idle' | 'active' | 'transmitting' | 'delivered' | 'slashed'
+
+export interface AgentState {
+  id: AgentId
+  codename: string
+  role: string
+  status: AgentStatus
+  latencyMs: number | null
+  stakeUsdc: number
+}
+
+export type StreamKind = 'system' | 'comms' | 'payment' | 'alert' | 'verdict'
+
+export interface StreamMessage {
+  id: number
+  timestamp: string
+  kind: StreamKind
+  from: AgentId | 'caller' | 'system'
+  to: AgentId | 'caller' | 'system' | null
+  text: string
+  txHash?: string
+}
+
+export interface Handoff {
+  id: number
+  from: AgentId
+  to: AgentId | 'caller'
+  label: string
+  state: 'done' | 'active' | 'slashed'
+}
+
+export interface Metrics {
+  progress: number
+  confidence: number
+  riskScore: number
+  latencyMs: number
+  toolCalls: number
+}
 
 export interface VerdictOutput {
   verdict: Verdict
@@ -30,12 +70,4 @@ export interface VerdictOutput {
     orchestratorToHistory: string
     orchestratorToSynthesizer: string
   }
-}
-
-export interface LogEvent {
-  id: number
-  timestamp: string
-  message: string
-  txHash?: string
-  tone: 'default' | 'croo' | 'avoid'
 }
